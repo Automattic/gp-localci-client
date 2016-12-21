@@ -10,19 +10,23 @@ JS_FILES=$(find . \
 	\( -name '*.js' -or -name '*.jsx' \) \
 )
 
-if [ "$1" ]; then
+if [[ "$1" ]]; then
 	BRANCH=$1
 else
 	BRANCH=$(git rev-parse --abbrev-ref HEAD)
 fi
 
-if [ "$2" ]; then
-	SHA=$1
+if [[ "${#2}" -eq 40 ]]; then
+	SHA=$2
 fi
 
-if [[ $BRANCH == "master" ]]; then
+if [[ "$3" ]]; then
+	OUTPUT_DIR=$3
+fi
+
+if [[ "$BRANCH" == "master" ]]; then
 	exit 0
-elif [[ $BRANCH == "HEAD" ]]; then
+elif [[ "$BRANCH" == "HEAD" ]]; then
 	exit 1
 fi
 
@@ -40,7 +44,12 @@ fi
 msgcat -u localci-*.pot > localci-new-strings.pot;
 rm localci-*-master-copy.pot;
 
-if [[ ${#SHA} -eq 40 ]]; then
+if [[ "$OUTPUT_DIR" ]]; then
+	mkdir -p $OUTPUT_DIR
+	mv localci-*.pot $OUTPUT_DIR
+fi
+
+if [[ "${#SHA}" -eq 40 ]]; then
 	git checkout $SHA
 else
 	git checkout $BRANCH
