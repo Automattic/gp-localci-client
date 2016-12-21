@@ -27,6 +27,7 @@ fi
 
 if type "node" &> /dev/null; then
 	cd gp-localci-client/i18n-calypso
+	git submodule init; git submodule update
 	npm install
 	cd -
 	node gp-localci-client/i18n-calypso/bin --format pot --output-file ./localci-js-changed.pot $JS_FILES
