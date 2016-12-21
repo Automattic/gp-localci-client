@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 JS_FILES=$(find . \
 	-not \( -path './.git' -prune \) \
