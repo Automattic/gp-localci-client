@@ -1,0 +1,3 @@
+[submodule "i18n-calypso"]
+	path = i18n-calypso
+	url = git@github.com:Automattic/i18n-calypso.git
