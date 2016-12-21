@@ -5,6 +5,7 @@ JS_FILES=$(find . \
 	-not \( -path './build' -prune \) \
 	-not \( -path './node_modules' -prune \) \
 	-not \( -path './public' -prune \) \
+	-not \( -path './gp-localci-client' -prune \) \
 	-type f \
 	\( -name '*.js' -or -name '*.jsx' \) \
 )
