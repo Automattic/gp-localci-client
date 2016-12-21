@@ -24,12 +24,14 @@ if [[ "$3" ]]; then
 	OUTPUT_DIR=$3
 fi
 
+# bail if we don't have good branch information
 if [[ "$BRANCH" == "master" ]]; then
 	exit 0
 elif [[ "$BRANCH" == "HEAD" ]]; then
 	exit 1
 fi
 
+# if node is installed, d/l node gettext tools and run
 if type "node" &> /dev/null; then
 	cd gp-localci-client/i18n-calypso
 	git submodule init; git submodule update
@@ -49,6 +51,7 @@ if [[ "$OUTPUT_DIR" ]]; then
 	mv localci-*.pot $OUTPUT_DIR
 fi
 
+# restore to original, favor a sha if given to us
 if [[ "${#SHA}" -eq 40 ]]; then
 	git checkout $SHA
 else
