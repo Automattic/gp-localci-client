@@ -36,6 +36,11 @@ elif [[ "$BRANCH" == "HEAD" ]]; then
 	exit 1
 fi
 
+# bail if msgcat is not installed
+if ! type "msgcat" &> /dev/null; then
+	exit 1
+fi
+
 # if node is installed, d/l node gettext tools and run
 if type "node" &> /dev/null; then
 	cd gp-localci-client/i18n-calypso
