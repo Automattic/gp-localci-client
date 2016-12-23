@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
 
+# This script is intended to run on a branch.
+# It generates master and branch pot files
+# and then distills them to find the unique
+# (new or changed) strings in the branch.
+
 JS_FILES=$(find . \
 	-not \( -path './.git' -prune \) \
 	-not \( -path './build' -prune \) \
