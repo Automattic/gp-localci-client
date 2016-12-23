@@ -38,7 +38,9 @@ if type "node" &> /dev/null; then
 	npm install
 	cd -
 	node gp-localci-client/i18n-calypso/bin --format pot --output-file ./localci-js-changed.pot $JS_FILES
-	git merge-base --fork-point master | xargs git checkout;
+	git checkout master
+	git pull
+	diff -U1 <(git rev-list --first-parent ${BRANCH}) <(git rev-list --first-parent master) | tail -1 | xargs git checkout
 	node gp-localci-client/i18n-calypso/bin --format pot --output-file ./localci-js-master.pot $JS_FILES
 	cp localci-js-master.pot localci-js-master-copy.pot;
 fi
