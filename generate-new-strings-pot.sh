@@ -40,6 +40,12 @@ COMMITS_HASHES=$(join_by '\|^' ${COMMITS_HASHES[@]})
 # Output our json file
 printf "{\n\t" > localci-changed-files.json
 for file in $CHANGED_FILES; do
+
+	# No need to blame on a removed file
+	if [ ! -e "$file" ]; then
+		break
+	fi
+
 	# Get all the lines that changed in our commits
 	LINES=$(git blame -f -s ${file} | grep "^${COMMITS_HASHES}" | sed -n "s|^[[:xdigit:]]\{8\} \{1,5\}${file} \{1,5\}\([[:digit:]]\{1,4\}\)).*$|\1|p")
 	if [ -n "$LINES" ]; then
