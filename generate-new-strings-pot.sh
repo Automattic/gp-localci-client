@@ -52,6 +52,9 @@ for file in $CHANGED_FILES; do
 		printf '"%s":\n\t[ ' "$file" >> localci-changed-files.json
 		for line in $LINES ; do
 			printf '\n\t "%s",' "$line" >> localci-changed-files.json
+			# Also add previous line, for cases where 'translate' is on one line, and the actual string on the next
+			((line--))
+			printf '\n\t "%s",' "$line" >> localci-changed-files.json
 		done;
 		sed -i '' '$ s/.$//' localci-changed-files.json # remove last comma
 		printf '\t],\n' >> localci-changed-files.json
