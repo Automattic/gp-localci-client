@@ -32,7 +32,7 @@ function join_by { local d=$1; shift; echo -n "$1"; shift; printf "%s" "${@/#/$d
 CHANGED_FILES=$(git diff --name-only $(git merge-base $BRANCH master) $BRANCH)
 
 # Diff commits to this branch
-COMMITS_HASHES=$(git log --graph --abbrev-commit --date=relative master..$BRANCH --pretty=format:%h | cut -c 3-);
+COMMITS_HASHES=$(git log --graph --abbrev=8 --date=relative master..$BRANCH --pretty=format:%h | cut -c 3-);
 
 # Concatenate
 COMMITS_HASHES=$(join_by '\|^' ${COMMITS_HASHES[@]})
@@ -41,7 +41,7 @@ COMMITS_HASHES=$(join_by '\|^' ${COMMITS_HASHES[@]})
 printf "{\n\t" > localci-changed-files.json
 for file in $CHANGED_FILES; do
 	# Get all the lines that changed in our commits
-	LINES=$(git blame -s ${file} | grep "^${COMMITS_HASHES}" | sed -n 's/^[[:xdigit:]]\{5,40\} \{1,5\}\([[:digit:]]\{1,4\}\)).*$/\1/p')
+	LINES=$(git blame -f -s ${file} | grep "^${COMMITS_HASHES}" | sed -n "s|^[[:xdigit:]]\{8\} \{1,5\}${file} \{1,5\}\([[:digit:]]\{1,4\}\)).*$|\1|p")
 	if [ -n "$LINES" ]; then
 		printf '"%s":\n\t[ ' "$file" >> localci-changed-files.json
 		for line in $LINES ; do
