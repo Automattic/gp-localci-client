@@ -29,7 +29,7 @@ fi
 function join_by { local d=$1; shift; echo -n "$1"; shift; printf "%s" "${@/#/$d}"; }
 
 # All files changed in this branch
-CHANGED_FILES=$(git diff --name-only $(git merge-base $BRANCH master) $BRANCH '*.js' '*.jsx')
+CHANGED_FILES=$(git diff --name-only $(git merge-base $BRANCH master) $BRANCH -- '*.js' '*.jsx')
 
 # Diff commits to this branch
 COMMITS_HASHES=$(git log master..$BRANCH --pretty=format:%H);
