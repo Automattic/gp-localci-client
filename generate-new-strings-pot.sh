@@ -32,32 +32,29 @@ function join_by { local d=$1; shift; echo -n "$1"; shift; printf "%s" "${@/#/$d
 CHANGED_FILES=$(git diff --name-only $(git merge-base $BRANCH master) $BRANCH '*.js' '*.jsx')
 
 # Diff commits to this branch
-COMMITS_HASHES=$(git log --graph --abbrev=8 --date=relative master..$BRANCH --pretty=format:%h | cut -c 3-);
+COMMITS_HASHES=$(git log master..$BRANCH --pretty=format:%H);
 
 # Concatenate
 COMMITS_HASHES=$(join_by '\|^' ${COMMITS_HASHES[@]})
 
 # Output our json file
-printf "{\n\t" > localci-changed-files.json
+printf "{\n" > localci-changed-files.json
 for file in $CHANGED_FILES; do
-
 	# No need to blame on a removed file
-	if [ ! -e "$file" ]; then
+	if [ ! -f "$(pwd)/$file" ]; then
 		break
 	fi
-
 	# Get all the lines that changed in our commits
-	LINES=$(git blame -f -s ${file} | grep "^${COMMITS_HASHES}" | sed -n "s|^[[:xdigit:]]\{8\} \{1,5\}${file} \{1,5\}\([[:digit:]]\{1,4\}\)).*$|\1|p")
+	LINES=$(git blame -flsp ${file} | grep "^${COMMITS_HASHES}" | cut -f 2 -d " ")
 	if [ -n "$LINES" ]; then
-		printf '"%s":\n\t[ ' "$file" >> localci-changed-files.json
+		printf '"%s":[' "$file" >> localci-changed-files.json
+		lastline=
 		for line in $LINES ; do
-			printf '\n\t "%s",' "$line" >> localci-changed-files.json
-			# Also add previous line, for cases where 'translate' is on one line, and the actual string on the next
-			((line--))
-			printf '\n\t "%s",' "$line" >> localci-changed-files.json
+			[[ "$lastline" -ne "$((line-1))" ]] && printf '%d,' $((line-1)) >> localci-changed-files.json
+			printf '%d,' $line >> localci-changed-files.json
+			lastline=$line
 		done;
-		sed -i '' '$ s/.$//' localci-changed-files.json # remove last comma
-		printf '\t],\n' >> localci-changed-files.json
+		sed -i '' '$ s/,$/],/' localci-changed-files.json # remove last comma
 	fi;
 done;
 sed -i '' '$ s/.$//' localci-changed-files.json # remove last comma
@@ -65,15 +62,16 @@ printf '}\n' >> localci-changed-files.json
 
 # if node is installed, d/l node gettext tools and run
 if type "node" &> /dev/null; then
-	cd gp-localci-client/i18n-calypso
+	LOCALCI_CLIENT_DIR=$(dirname $0)/i18n-calypso
+	cd $LOCALCI_CLIENT_DIR
 	git submodule init; git submodule update
 	npm install
 	cd -
-	node gp-localci-client/i18n-calypso/bin --format pot --lines-filter localci-changed-files.json --output-file ./localci-new-strings.pot $CHANGED_FILES
+	node $LOCALCI_CLIENT_DIR/bin --format pot --lines-filter localci-changed-files.json --output-file ./localci-new-strings.pot $CHANGED_FILES
 fi
 
 # Cleanup
-rm localci-changed-files.json
+rm -f localci-changed-files.json
 
 if [[ "$OUTPUT_DIR" ]]; then
 	mkdir -p $OUTPUT_DIR
