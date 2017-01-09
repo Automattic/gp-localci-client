@@ -31,6 +31,10 @@ function join_by { local d=$1; shift; echo -n "$1"; shift; printf "%s" "${@/#/$d
 # All files changed in this branch
 CHANGED_FILES=$(git diff --name-only $(git merge-base $BRANCH master) $BRANCH -- '*.js' '*.jsx')
 
+if [ -z "$CHANGED_FILES" ]; then
+	exit
+fi
+
 # Diff commits to this branch
 COMMITS_HASHES=$(git log master..$BRANCH --pretty=format:%H);
 
@@ -42,7 +46,7 @@ printf "{" > localci-changed-files.json
 for file in $CHANGED_FILES; do
 	# No need to blame on a removed file
 	if [ ! -f "$(pwd)/$file" ]; then
-		break
+		continue
 	fi
 	# Get all the lines that changed in our commits
 	LINES=$(git blame -flsp ${file} | grep "^${COMMITS_HASHES}" | cut -f 2 -d " ")
