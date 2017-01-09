@@ -38,7 +38,7 @@ COMMITS_HASHES=$(git log master..$BRANCH --pretty=format:%H);
 COMMITS_HASHES=$(join_by '\|^' ${COMMITS_HASHES[@]})
 
 # Output our json file
-printf "{\n" > localci-changed-files.json
+printf "{" > localci-changed-files.json
 for file in $CHANGED_FILES; do
 	# No need to blame on a removed file
 	if [ ! -f "$(pwd)/$file" ]; then
@@ -55,20 +55,19 @@ for file in $CHANGED_FILES; do
 			printf '%d,' $line >> localci-changed-files.json
 			lastline=$line
 		done;
-		sed -i '' '$ s/,$/],/' localci-changed-files.json # remove last comma
+		sed -i '$ s/,$/],/' localci-changed-files.json # remove last comma
 	fi;
 done;
-sed -i '' '$ s/,$//' localci-changed-files.json # remove last comma
+sed -i '$ s/,$//' localci-changed-files.json # remove last comma
 printf '}\n' >> localci-changed-files.json
 
 # if node is installed, d/l node gettext tools and run
 if type "node" &> /dev/null; then
-	LOCALCI_CLIENT_DIR=$(dirname $0)/i18n-calypso
-	cd $LOCALCI_CLIENT_DIR
+	cd gp-localci-client/i18n-calypso
 	git submodule init; git submodule update
 	npm install
 	cd -
-	node $LOCALCI_CLIENT_DIR/bin --format pot --lines-filter localci-changed-files.json --output-file ./localci-new-strings.pot $CHANGED_FILES
+	node gp-localci-client/i18n-calypso/bin --format pot --lines-filter localci-changed-files.json --output-file ./localci-new-strings.pot $CHANGED_FILES
 fi
 
 # Cleanup
