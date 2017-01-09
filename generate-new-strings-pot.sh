@@ -5,16 +5,6 @@
 # and then distills them to find the unique
 # (new or changed) strings in the branch.
 
-JS_FILES=$(find . \
-	-not \( -path './.git' -prune \) \
-	-not \( -path './build' -prune \) \
-	-not \( -path './node_modules' -prune \) \
-	-not \( -path './public' -prune \) \
-	-not \( -path './gp-localci-client' -prune \) \
-	-type f \
-	\( -name '*.js' -or -name '*.jsx' \) \
-)
-
 if [[ "$1" ]]; then
 	BRANCH=$1
 else
@@ -36,36 +26,55 @@ elif [[ "$BRANCH" == "HEAD" ]]; then
 	exit 1
 fi
 
-# bail if msgcat is not installed
-if ! type "msgcat" &> /dev/null; then
-	exit 1
-fi
+function join_by { local d=$1; shift; echo -n "$1"; shift; printf "%s" "${@/#/$d}"; }
+
+# All files changed in this branch
+CHANGED_FILES=$(git diff --name-only $(git merge-base $BRANCH master) $BRANCH '*.js' '*.jsx')
+
+# Diff commits to this branch
+COMMITS_HASHES=$(git log master..$BRANCH --pretty=format:%H);
+
+# Concatenate
+COMMITS_HASHES=$(join_by '\|^' ${COMMITS_HASHES[@]})
+
+# Output our json file
+printf "{\n" > localci-changed-files.json
+for file in $CHANGED_FILES; do
+	# No need to blame on a removed file
+	if [ ! -f "$(pwd)/$file" ]; then
+		break
+	fi
+	# Get all the lines that changed in our commits
+	LINES=$(git blame -flsp ${file} | grep "^${COMMITS_HASHES}" | cut -f 2 -d " ")
+	if [ -n "$LINES" ]; then
+		printf '"%s":[' "$file" >> localci-changed-files.json
+		lastline=
+		for line in $LINES ; do
+			# Also add previous line, for cases where 'translate' is on one line, and the actual string on the next
+			[[ "$lastline" -ne "$((line-1))" ]] && printf '%d,' $((line-1)) >> localci-changed-files.json
+			printf '%d,' $line >> localci-changed-files.json
+			lastline=$line
+		done;
+		sed -i '' '$ s/,$/],/' localci-changed-files.json # remove last comma
+	fi;
+done;
+sed -i '' '$ s/,$//' localci-changed-files.json # remove last comma
+printf '}\n' >> localci-changed-files.json
 
 # if node is installed, d/l node gettext tools and run
 if type "node" &> /dev/null; then
-	cd gp-localci-client/i18n-calypso
+	LOCALCI_CLIENT_DIR=$(dirname $0)/i18n-calypso
+	cd $LOCALCI_CLIENT_DIR
 	git submodule init; git submodule update
 	npm install
 	cd -
-	node gp-localci-client/i18n-calypso/bin --format pot --output-file ./localci-js-changed.pot $JS_FILES
-	git checkout master
-	git pull
-	diff -U1 <(git rev-list --first-parent ${BRANCH}) <(git rev-list --first-parent master) | tail -1 | xargs git checkout
-	node gp-localci-client/i18n-calypso/bin --format pot --output-file ./localci-js-master.pot $JS_FILES
-	cp localci-js-master.pot localci-js-master-copy.pot;
+	node $LOCALCI_CLIENT_DIR/bin --format pot --lines-filter localci-changed-files.json --output-file ./localci-new-strings.pot $CHANGED_FILES
 fi
 
-msgcat -u localci-*.pot > localci-new-strings.pot;
-rm localci-*-master-copy.pot;
+# Cleanup
+rm -f localci-changed-files.json
 
 if [[ "$OUTPUT_DIR" ]]; then
 	mkdir -p $OUTPUT_DIR
 	mv localci-*.pot $OUTPUT_DIR
-fi
-
-# restore to original, favor a sha if given to us
-if [[ "${#SHA}" -eq 40 ]]; then
-	git checkout $SHA
-else
-	git checkout $BRANCH
 fi
