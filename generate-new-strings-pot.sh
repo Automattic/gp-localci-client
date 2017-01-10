@@ -29,7 +29,7 @@ fi
 # Files and hashes of changes in this Pull request/Branch
 if [[ "$CI_PULL_REQUEST" ]]; then
 	echo "LocalCI - processing pull request $CI_PULL_REQUEST"
-	CHANGED_FILES=$(curl -s https://api.github.com/repos/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME/pulls/${CI_PULL_REQUEST##*/}/files | jq -r '.[] .filename' | grep '[\.jsx|\.js]$')
+	CHANGED_FILES=$(curl -s https://api.github.com/repos/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME/pulls/${CI_PULL_REQUEST##*/}/files | jq -r '.[] .filename' | grep -e '.jsx$' -e '\.js$')
 	COMMITS_HASHES=$(curl -s https://api.github.com/repos/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME/pulls/${CI_PULL_REQUEST##*/}/commits | jq -r '.[] .sha');
 else
 	echo "LocalCI - processing branch $BRANCH"
