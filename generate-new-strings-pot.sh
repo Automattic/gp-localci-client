@@ -26,19 +26,22 @@ elif [[ "$BRANCH" == "HEAD" ]]; then
 	exit 1
 fi
 
-function join_by { local d=$1; shift; echo -n "$1"; shift; printf "%s" "${@/#/$d}"; }
-
-# All files changed in this branch
-CHANGED_FILES=$(git diff --name-only $(git merge-base $BRANCH master) $BRANCH -- '*.js' '*.jsx')
-
-if [ -z "$CHANGED_FILES" ]; then
-	exit
+# Files and hashes of changes in this Pull request/Branch
+if [[ "$CI_PULL_REQUEST" ]]; then
+	CHANGED_FILES=$(curl -s https://api.github.com/repos/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME/pulls/${CI_PULL_REQUEST##*/}/files | jq -r '.[] .filename' | grep '[\.jsx|\.js]$')
+	COMMITS_HASHES=$(curl -s https://api.github.com/repos/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME/pulls/${CI_PULL_REQUEST##*/}/commits | jq -r '.[] .sha');
+else
+	CHANGED_FILES=$(git diff --name-only $(git merge-base $BRANCH master) $BRANCH -- '*.js' '*.jsx')
+	COMMITS_HASHES=$(git log master..$BRANCH --pretty=format:%H);
 fi
 
-# Diff commits to this branch
-COMMITS_HASHES=$(git log master..$BRANCH --pretty=format:%H);
+# Bail if no files were changed in this branch
+if [ -z "$CHANGED_FILES" ]; then
+	exit 3
+fi
 
 # Concatenate
+function join_by { local d=$1; shift; echo -n "$1"; shift; printf "%s" "${@/#/$d}"; }
 COMMITS_HASHES=$(join_by '\|^' ${COMMITS_HASHES[@]})
 
 # Output our json file
