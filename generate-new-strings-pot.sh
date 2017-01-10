@@ -59,11 +59,14 @@ for file in $CHANGED_FILES; do
 			printf '%d,' $line >> localci-changed-files.json
 			lastline=$line
 		done;
-		sed -i '$ s/,$/],/' localci-changed-files.json # remove last comma
+		sed -i.bak '$ s/,$/],/' localci-changed-files.json # replace last comma with closing square bracket and comma
 	fi;
 done;
-sed -i '$ s/,$//' localci-changed-files.json # remove last comma
+sed -i.bak '$ s/,$//' localci-changed-files.json # remove last comma
 printf '}\n' >> localci-changed-files.json
+
+# remove throwaway file created by cross-platform sed command
+rm -f localci-changed-files.json.bak
 
 # if node is installed, d/l node gettext tools and run
 if type "node" &> /dev/null; then
