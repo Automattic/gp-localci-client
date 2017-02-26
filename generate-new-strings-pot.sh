@@ -59,7 +59,7 @@ for file in $CHANGED_FILES; do
 		continue
 	fi
 	# Get all the lines that changed in our commits
-	LINES=$(git blame -flsp ${file} | grep "^${COMMITS_HASHES}" | cut -f 2 -d " ")
+	LINES=$(git blame -flsp ${file} | grep "^${COMMITS_HASHES}" | cut -f 3 -d " ")
 	if [ -n "$LINES" ]; then
 		printf '"%s":[' "$file" >> localci-changed-files.json
 		lastline=
