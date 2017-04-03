@@ -33,9 +33,19 @@ if [[ "$CI_PULL_REQUEST" ]]; then
 	FILESURL=https://api.github.com/repos/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME/pulls/${CI_PULL_REQUEST##*/}/files;
 	COMMITSURL=https://api.github.com/repos/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME/pulls/${CI_PULL_REQUEST##*/}/commits
 	echo "LocalCI - fetching $FILESURL"
-	CHANGED_FILES=$(curl -s $FILESURL | jq -r '.[] .filename' | grep -e '.jsx$' -e '\.js$')
+	GH_FILESURL_CONTENT=$(curl -s $FILESURL)
+	CHANGED_FILES=$(echo $GH_FILESURL_CONTENT | jq -r '.[] .filename' | grep -e '.jsx$' -e '\.js$')
+	if [ $? -ne 0 ]; then
+	    echo "Error parsing $FILESURL:"
+	    echo $GH_FILESURL_CONTENT
+	fi
 	echo "LocalCI - fetching $COMMITSURL"
-	COMMITS_HASHES=$(curl -s $COMMITSURL | jq -r '.[] .sha');
+	GH_COMMITSURL_CONTENT=$(curl -s $COMMITSURL)
+	COMMITS_HASHES=$(echo $GH_COMMITSURL_CONTENT | jq -r '.[] .sha');
+	if [ $? -ne 0 ]; then
+	    echo "Error parsing $COMMITSURL:"
+	    echo $GH_COMMITSURL_CONTENT
+	fi
 else
 	echo "LocalCI - processing branch $BRANCH"
 	CHANGED_FILES=$(git diff --name-only $(git merge-base $BRANCH master) $BRANCH -- '*.js' '*.jsx')
