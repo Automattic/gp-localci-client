@@ -26,21 +26,29 @@ elif [[ "$BRANCH" == "HEAD" ]]; then
 	exit 1
 fi
 
-# Files and hashes of changes in this Pull request/Branch
+# Authenticated Github api requests
+function auth_gh_curl() {
+	local URL=$1;
+	if [[ -n "${LOCALCI_APP_ID}" && -n "${LOCALCI_APP_SECRET}" ]] ; then
+		URL="$URL?client_id=${LOCALCI_APP_ID}&client_secret=${LOCALCI_APP_SECRET}"
+	fi
+    curl -s $URL
+}
+
 # Files and hashes of changes in this Pull request/Branch
 if [[ "$CI_PULL_REQUEST" ]]; then
 	echo "LocalCI - processing pull request $CI_PULL_REQUEST"
-	FILESURL=https://api.github.com/repos/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME/pulls/${CI_PULL_REQUEST##*/}/files;
+	FILESURL=https://api.github.com/repos/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME/pulls/${CI_PULL_REQUEST##*/}/files
 	COMMITSURL=https://api.github.com/repos/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME/pulls/${CI_PULL_REQUEST##*/}/commits
 	echo "LocalCI - fetching $FILESURL"
-	GH_FILESURL_CONTENT=$(curl -s $FILESURL)
+	GH_FILESURL_CONTENT=$(auth_gh_curl $FILESURL)
 	CHANGED_FILES=$(echo $GH_FILESURL_CONTENT | jq -r '.[] .filename' | grep -e '.jsx$' -e '\.js$')
 	if [ $? -ne 0 ]; then
 	    echo "Error parsing $FILESURL:"
 	    echo $GH_FILESURL_CONTENT
 	fi
 	echo "LocalCI - fetching $COMMITSURL"
-	GH_COMMITSURL_CONTENT=$(curl -s $COMMITSURL)
+	GH_COMMITSURL_CONTENT=$(auth_gh_curl $COMMITSURL)
 	COMMITS_HASHES=$(echo $GH_COMMITSURL_CONTENT | jq -r '.[] .sha');
 	if [ $? -ne 0 ]; then
 	    echo "Error parsing $COMMITSURL:"
