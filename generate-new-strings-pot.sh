@@ -35,6 +35,16 @@ function auth_gh_curl() {
     curl -s $URL
 }
 
+function move_pot_to_output() {
+	if [[ ! -f "./localci-new-strings.pot" ]]; then
+		touch ./localci-new-strings.pot
+	fi
+	if [[ "$OUTPUT_DIR" ]]; then
+		mkdir -p $OUTPUT_DIR
+		mv localci-*.pot $OUTPUT_DIR
+	fi
+}
+
 # Files and hashes of changes in this Pull request/Branch
 if [[ "$CI_PULL_REQUEST" ]]; then
 	echo "LocalCI - processing pull request $CI_PULL_REQUEST"
@@ -62,6 +72,7 @@ fi
 
 # Bail if no files were changed in this branch
 if [ -z "$CHANGED_FILES" ]; then
+	move_pot_to_output
 	exit 3
 fi
 
@@ -107,8 +118,5 @@ fi
 
 # Cleanup
 rm -f localci-changed-files.json
+move_pot_to_output
 
-if [[ "$OUTPUT_DIR" ]]; then
-	mkdir -p $OUTPUT_DIR
-	mv localci-*.pot $OUTPUT_DIR
-fi
