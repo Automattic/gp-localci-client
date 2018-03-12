@@ -52,10 +52,15 @@ if [[ "$CI_PULL_REQUEST" ]]; then
 	COMMITSURL=https://api.github.com/repos/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME/pulls/${CI_PULL_REQUEST##*/}/commits
 	echo "LocalCI - fetching $FILESURL"
 	GH_FILESURL_CONTENT=$(auth_gh_curl $FILESURL)
-	CHANGED_FILES=$(echo $GH_FILESURL_CONTENT | jq -r '.[] .filename' | grep -e '.jsx$' -e '\.js$')
+	ANY_CHANGED_FILES=$(echo $GH_FILESURL_CONTENT | jq -r '.[] .filename' )
 	if [ $? -ne 0 ]; then
 	    echo "Error parsing $FILESURL:"
 	    echo $GH_FILESURL_CONTENT
+	fi
+	CHANGED_FILES=$(echo "$ANY_CHANGED_FILES" | grep -e '.jsx$' -e '\.js$' )
+	if [ $? -ne 0 ]; then
+	    echo "No JS files changed."
+	    exit 0
 	fi
 	echo "LocalCI - fetching $COMMITSURL"
 	GH_COMMITSURL_CONTENT=$(auth_gh_curl $COMMITSURL)
