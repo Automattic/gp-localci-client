@@ -54,16 +54,22 @@ if [[ "$CI_PULL_REQUEST" ]]; then
 	COMMITSURL=https://api.github.com/repos/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME/pulls/${CI_PULL_REQUEST##*/}/commits
 	echo "LocalCI - fetching $FILESURL"
 	GH_FILESURL_CONTENT=$(auth_gh_curl $FILESURL)
+
+	# Disable exit on error, this section uses non-0 exit codes
+	set +o errexit
+
 	ANY_CHANGED_FILES=$(echo $GH_FILESURL_CONTENT | jq -r '.[] .filename' )
 	if [ $? -ne 0 ]; then
 	    echo "Error parsing $FILESURL:"
 	    echo $GH_FILESURL_CONTENT
 	fi
+
 	CHANGED_FILES=$(echo "$ANY_CHANGED_FILES" | grep -e '.jsx$' -e '\.js$' )
 	if [ $? -ne 0 ]; then
 	    echo "No JS files changed."
 	    exit 0
 	fi
+
 	echo "LocalCI - fetching $COMMITSURL"
 	GH_COMMITSURL_CONTENT=$(auth_gh_curl $COMMITSURL)
 	COMMITS_HASHES=$(echo $GH_COMMITSURL_CONTENT | jq -r '.[] .sha');
@@ -71,6 +77,10 @@ if [[ "$CI_PULL_REQUEST" ]]; then
 	    echo "Error parsing $COMMITSURL:"
 	    echo $GH_COMMITSURL_CONTENT
 	fi
+
+	# Re-enable exit on error
+	set -o errexit
+
 else
 	echo "LocalCI - processing branch $BRANCH"
 	CHANGED_FILES=$(git diff --name-only $(git merge-base $BRANCH master) $BRANCH -- '*.js' '*.jsx')
