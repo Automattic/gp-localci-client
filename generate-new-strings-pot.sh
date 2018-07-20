@@ -113,12 +113,17 @@ printf '}\n' >> localci-changed-files.json
 rm -f localci-changed-files.json.bak
 
 # if node is installed, d/l node gettext tools and run
-if type "node" &> /dev/null; then
+if type "npx" &> /dev/null; then
+	npx i18n-calypso --format pot --lines-filter localci-changed-files.json --output-file ./localci-new-strings.pot $CHANGED_FILES
+elif type "node" &> /dev/null; then
 	cd gp-localci-client/i18n-calypso
 	git submodule init; git submodule update
 	npm install
 	cd -
 	node gp-localci-client/i18n-calypso/bin --format pot --lines-filter localci-changed-files.json --output-file ./localci-new-strings.pot $CHANGED_FILES
+else
+	echo "npx and node not found.  Failed to extract strings."
+	exit 1
 fi
 
 # Cleanup
