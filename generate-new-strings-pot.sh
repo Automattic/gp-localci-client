@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 
-set -o errexit
-
 # This script is intended to run on a branch.
 # It generates master and branch pot files
 # and then distills them to find the unique
