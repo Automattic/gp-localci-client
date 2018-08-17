@@ -55,7 +55,7 @@ if [[ "$CI_PULL_REQUEST" ]]; then
 	echo "LocalCI - fetching $FILESURL"
 	GH_FILESURL_CONTENT=$(auth_gh_curl $FILESURL)
 
-	# Disable exit on error, this section uses non-0 exit codes
+	# Disable exit on error. This section checks for non-0 exit codes
 	set +o errexit
 
 	ANY_CHANGED_FILES=$(echo $GH_FILESURL_CONTENT | jq -r '.[] .filename' )
