@@ -64,7 +64,7 @@ if [[ "$CI_PULL_REQUEST" ]]; then
 	    echo $GH_FILESURL_CONTENT
 	fi
 
-	CHANGED_FILES=$(echo "$ANY_CHANGED_FILES" | grep -e '.jsx$' -e '\.js$' )
+	CHANGED_FILES=$(echo "$ANY_CHANGED_FILES" | grep -e '.jsx$' -e '\.js$' -e '.tsx$' -e '\.ts$' )
 	if [ $? -ne 0 ]; then
 	    echo "No JS files changed."
 	    exit 0
@@ -83,7 +83,7 @@ if [[ "$CI_PULL_REQUEST" ]]; then
 
 else
 	echo "LocalCI - processing branch $BRANCH"
-	CHANGED_FILES=$(git diff --name-only $(git merge-base $BRANCH master) $BRANCH -- '*.js' '*.jsx')
+	CHANGED_FILES=$(git diff --name-only $(git merge-base $BRANCH master) $BRANCH -- '*.js' '*.jsx' '*.ts' '*.tsx')
 	COMMITS_HASHES=$(git log master..$BRANCH --pretty=format:%H);
 fi
 
