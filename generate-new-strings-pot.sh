@@ -90,7 +90,7 @@ fi
 # Bail if no files were changed in this branch
 if [ -z "$CHANGED_FILES" ]; then
 	move_pot_to_output
-	exit 3
+	exit 0
 fi
 
 # Concatenate
