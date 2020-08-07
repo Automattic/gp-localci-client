@@ -126,7 +126,7 @@ rm -f localci-changed-files.json.bak
 
 # if node is installed, d/l node gettext tools and run
 if type "npx" &> /dev/null; then
-	npx i18n-calypso --format pot --lines-filter localci-changed-files.json -k translate,__,_x,_n,_nx -e date --output-file ./localci-new-strings.pot $CHANGED_FILES
+	npx @automattic/wp-babel-makepot "$CHANGED_FILES" -l localci-changed-files.json -d "./build/pot" -o ./localci-new-strings.pot
 elif type "node" &> /dev/null; then
 	cd gp-localci-client/i18n-calypso
 	git submodule init; git submodule update
@@ -140,5 +140,6 @@ fi
 
 # Cleanup
 rm -f localci-changed-files.json
+rm -rf ./build/pot
 move_pot_to_output
 
