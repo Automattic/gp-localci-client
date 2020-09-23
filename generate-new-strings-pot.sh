@@ -124,6 +124,9 @@ printf '}\n' >> localci-changed-files.json
 # remove throwaway file created by cross-platform sed command
 rm -f localci-changed-files.json.bak
 
+# convert CHANGED_FILES to single line input
+CHANGED_FILES="$(tr '\n' ' ' <<<$CHANGED_FILES)"
+
 # if node is installed, d/l node gettext tools and run
 if type "npx" &> /dev/null; then
 	npx @automattic/wp-babel-makepot "$CHANGED_FILES" -l localci-changed-files.json -d "./build/pot" -o ./localci-new-strings.pot
