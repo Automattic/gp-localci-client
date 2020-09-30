@@ -3,7 +3,7 @@
 set -o errexit
 
 # This script is intended to run on a branch.
-# It generates master and branch pot files
+# It generates trunk and branch pot files
 # and then distills them to find the unique
 # (new or changed) strings in the branch.
 
@@ -22,7 +22,7 @@ if [[ "$3" ]]; then
 fi
 
 # bail if we don't have good branch information
-if [[ "$BRANCH" == "master" ]]; then
+if [[ "$BRANCH" == "trunk" ]]; then
 	exit 0
 elif [[ "$BRANCH" == "HEAD" ]]; then
 	exit 1
@@ -83,8 +83,8 @@ if [[ "$CI_PULL_REQUEST" ]]; then
 
 else
 	echo "LocalCI - processing branch $BRANCH"
-	CHANGED_FILES=$(git diff --name-only $(git merge-base $BRANCH master) $BRANCH -- '*.js' '*.jsx' '*.ts' '*.tsx')
-	COMMITS_HASHES=$(git log master..$BRANCH --pretty=format:%H);
+	CHANGED_FILES=$(git diff --name-only $(git merge-base $BRANCH trunk) $BRANCH -- '*.js' '*.jsx' '*.ts' '*.tsx')
+	COMMITS_HASHES=$(git log trunk..$BRANCH --pretty=format:%H);
 fi
 
 # Bail if no files were changed in this branch
