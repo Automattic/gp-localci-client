@@ -7,8 +7,9 @@ set -o errexit
 # and then distills them to find the unique
 # (new or changed) strings in the branch.
 
-# Use `master` as fallback for default branch name when variable is not set
-DEFAULT_BRANCH=${DEFAULT_BRANCH="master"}
+if [ -z "$DEFAULT_BRANCH" ]; then
+	DEFAULT_BRANCH=$(git branch -al | grep HEAD | awk -F/ '{print $4}')
+fi
 
 if [[ "$1" ]]; then
 	BRANCH=$1
