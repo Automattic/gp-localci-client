@@ -3,9 +3,13 @@
 set -o errexit
 
 # This script is intended to run on a branch.
-# It generates master and branch pot files
+# It generates default and branch pot files
 # and then distills them to find the unique
 # (new or changed) strings in the branch.
+
+if [ -z "$DEFAULT_BRANCH" ]; then
+	DEFAULT_BRANCH=$(git branch -al | grep HEAD | awk -F/ '{print $4}')
+fi
 
 if [[ "$1" ]]; then
 	BRANCH=$1
@@ -22,7 +26,7 @@ if [[ "$3" ]]; then
 fi
 
 # bail if we don't have good branch information
-if [[ "$BRANCH" == "master" ]]; then
+if [[ "$BRANCH" == "$DEFAULT_BRANCH" ]]; then
 	exit 0
 elif [[ "$BRANCH" == "HEAD" ]]; then
 	exit 1
@@ -83,8 +87,8 @@ if [[ "$CI_PULL_REQUEST" ]]; then
 
 else
 	echo "LocalCI - processing branch $BRANCH"
-	CHANGED_FILES=$(git diff --name-only $(git merge-base $BRANCH master) $BRANCH -- '*.js' '*.jsx' '*.ts' '*.tsx')
-	COMMITS_HASHES=$(git log master..$BRANCH --pretty=format:%H);
+	CHANGED_FILES=$(git diff --name-only $(git merge-base $BRANCH $DEFAULT_BRANCH) $BRANCH -- '*.js' '*.jsx' '*.ts' '*.tsx')
+	COMMITS_HASHES=$(git log $DEFAULT_BRANCH..$BRANCH --pretty=format:%H);
 fi
 
 # Bail if no files were changed in this branch
