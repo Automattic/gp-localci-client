@@ -36,9 +36,9 @@ fi
 function auth_gh_curl() {
 	local URL=$1;
 	if [[ -n "${LOCALCI_APP_ID}" && -n "${LOCALCI_APP_SECRET}" ]] ; then
-		URL="$URL?client_id=${LOCALCI_APP_ID}&client_secret=${LOCALCI_APP_SECRET}"
+		AUTH="-u ${LOCALCI_APP_ID}:${LOCALCI_APP_SECRET}"
 	fi
-    curl -s $URL
+    curl -s $AUTH $URL
 }
 
 function move_pot_to_output() {
