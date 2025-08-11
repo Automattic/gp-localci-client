@@ -41,6 +41,16 @@ function auth_gh_curl() {
     curl -s $AUTH $URL
 }
 
+# Merge the PHP pot and JS the pot files in one file (the JS pot file).
+function merge_php_js_pot_files() {
+	local PHP_FILE="$OUTPUT_DIR/localci-new-php-strings.pot"
+	local JS_FILE="$OUTPUT_DIR/localci-new-strings.pot"
+	if [[ -f "$PHP_FILE" ]]; then
+		cat "$PHP_FILE" >> "$JS_FILE"
+	fi
+	rm -f "$PHP_FILE"
+}
+
 function move_pot_to_output() {
 	if [[ ! -f "./localci-new-strings.pot" ]]; then
 		touch ./localci-new-strings.pot
@@ -49,6 +59,70 @@ function move_pot_to_output() {
 		mkdir -p $OUTPUT_DIR
 		mv localci-*.pot $OUTPUT_DIR
 	fi
+	merge_php_js_pot_files
+}
+
+# Extract PHP strings from changed files. 
+# This function collects new PHP strings from changed files in the current branch.
+# It creates temporary PHP files for each new string and uses WP-CLI to extract the strings
+# into a POT file. The headers of the POT file are cleaned up before output.
+function extract_php_strings() {
+	CHANGED_PHP_FILES=$(git diff --name-only $(git merge-base $BRANCH $DEFAULT_BRANCH) $BRANCH -- '*.php')
+	LOCALCI_NEW_PHP_STRINGS=""
+	if [ -n "$CHANGED_PHP_FILES" ]; then
+		for PHP_FILE in $CHANGED_PHP_FILES; do
+			if [ -f "$PHP_FILE" ]; then
+				NEW_LINES=$(git diff $(git merge-base $BRANCH $DEFAULT_BRANCH) $BRANCH -- "$PHP_FILE" | grep '^+' | grep -v '^+++' | sed 's/^+//')
+				if [ -n "$NEW_LINES" ]; then
+					LOCALCI_NEW_PHP_STRINGS="${LOCALCI_NEW_PHP_STRINGS}${NEW_LINES}"$'\n\n\n\n\n\n'
+				fi
+			fi
+		done
+
+		if [ -n "$LOCALCI_NEW_PHP_STRINGS" ]; then
+			mkdir -p "${OUTPUT_DIR}/files"
+			LINE_NUMBER=1
+			echo "$LOCALCI_NEW_PHP_STRINGS" | while IFS= read -r LINE; do
+				if [ -z "$LINE" ]; then
+					continue
+				fi
+				if [[ "$LINE" != *"<?php"* ]]; then
+					LINE="<?php $LINE"
+				fi
+				file_path="${OUTPUT_DIR}/files/${LINE_NUMBER}.php"
+				echo "$LINE" > "$file_path"
+				LINE_NUMBER=$((LINE_NUMBER+1))
+			done
+
+			if command -v wp &> /dev/null; then
+				echo $(pwd)
+				wp i18n make-pot . "${OUTPUT_DIR}/localci-new-php-strings.pot" --include="${OUTPUT_DIR}/files/" --ignore-domain
+				clean_pot_headers "${OUTPUT_DIR}/localci-new-php-strings.pot"
+				echo "Extraction complete. Output: ${OUTPUT_DIR}/localci-new-php-strings.pot"
+			else
+				echo "WP-CLI not found. Cannot extract PHP translation strings."
+			fi
+			rm -rf "${OUTPUT_DIR}/files"
+		fi
+	fi
+}
+
+# Clean up headers from the POT file
+clean_pot_headers() {
+	local file="$1"
+	sed -i.bak \
+		-e '/^"Project-Id-Version:/d' \
+		-e '/^"Report-Msgid-Bugs-To:/d' \
+		-e '/^"Last-Translator:/d' \
+		-e '/^"Language-Team:/d' \
+		-e '/^"MIME-Version:/d' \
+		-e '/^"Content-Type:/d' \
+		-e '/^"Content-Transfer-Encoding:/d' \
+		-e '/^"POT-Creation-Date:/d' \
+		-e '/^"PO-Revision-Date:/d' \
+		-e '/^"X-Generator:/d' \
+		"$file"
+	rm -f "${file}.bak"
 }
 
 # Files and hashes of changes in this Pull request/Branch
@@ -87,6 +161,7 @@ if [[ "$CI_PULL_REQUEST" ]]; then
 
 else
 	echo "LocalCI - processing branch $BRANCH"
+	extract_php_strings
 	CHANGED_FILES=$(git diff --name-only $(git merge-base $BRANCH $DEFAULT_BRANCH) $BRANCH -- '*.js' '*.jsx' '*.ts' '*.tsx')
 	COMMITS_HASHES=$(git log $DEFAULT_BRANCH..$BRANCH --pretty=format:%H);
 fi
@@ -124,6 +199,8 @@ for file in $CHANGED_FILES; do
 done;
 sed -i.bak '$ s/,$//' localci-changed-files.json # remove last comma
 printf '}\n' >> localci-changed-files.json
+echo "CHANGED_FILES: $CHANGED_FILES"
+echo "LINES: $LINES"
 
 # remove throwaway file created by cross-platform sed command
 rm -f localci-changed-files.json.bak
