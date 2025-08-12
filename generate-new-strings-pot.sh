@@ -161,6 +161,7 @@ if [[ "$CI_PULL_REQUEST" ]]; then
 
 else
 	echo "LocalCI - processing branch $BRANCH"
+	rm -rf "${OUTPUT_DIR}"
 	extract_php_strings
 	CHANGED_FILES=$(git diff --name-only $(git merge-base $BRANCH $DEFAULT_BRANCH) $BRANCH -- '*.js' '*.jsx' '*.ts' '*.tsx')
 	COMMITS_HASHES=$(git log $DEFAULT_BRANCH..$BRANCH --pretty=format:%H);
