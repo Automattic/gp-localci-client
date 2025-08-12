@@ -96,7 +96,7 @@ function extract_php_strings() {
 
 			if command -v wp &> /dev/null; then
 				echo $(pwd)
-				wp i18n make-pot . "${OUTPUT_DIR}/localci-new-php-strings.pot" --include="${OUTPUT_DIR}/files/" --ignore-domain
+				wp i18n make-pot "${OUTPUT_DIR}" "${OUTPUT_DIR}/localci-new-php-strings.pot" --include="${OUTPUT_DIR}/files/" --ignore-domain
 				clean_pot_headers "${OUTPUT_DIR}/localci-new-php-strings.pot"
 				echo "Extraction complete. Output: ${OUTPUT_DIR}/localci-new-php-strings.pot"
 			else
