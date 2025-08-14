@@ -67,7 +67,6 @@ function move_pot_to_output() {
 # It creates temporary PHP files for each new string and uses WP-CLI to extract the strings
 # into a POT file. The headers of the POT file are cleaned up before output.
 function extract_php_strings() {
-	git checkout $BRANCH
 	CHANGED_PHP_FILES=$(git diff --name-only $(git merge-base $BRANCH $DEFAULT_BRANCH) $BRANCH -- '*.php')
 	echo "Current branch: $(git rev-parse --abbrev-ref HEAD)"
 	echo "Command to extract merge-base commit: git merge-base $BRANCH $DEFAULT_BRANCH. Result: $(git merge-base $BRANCH $DEFAULT_BRANCH)"
@@ -171,6 +170,11 @@ else
 	extract_php_strings
 	CHANGED_FILES=$(git diff --name-only $(git merge-base $BRANCH $DEFAULT_BRANCH) $BRANCH -- '*.js' '*.jsx' '*.ts' '*.tsx')
 	COMMITS_HASHES=$(git log $DEFAULT_BRANCH..$BRANCH --pretty=format:%H);
+	echo "Current branch: $(git rev-parse --abbrev-ref HEAD)"
+	echo "Command to extract merge-base commit: git merge-base $BRANCH $DEFAULT_BRANCH. Result: $(git merge-base $BRANCH $DEFAULT_BRANCH)"
+	echo "Command to extract changed files: git diff --name-only $(git merge-base $BRANCH $DEFAULT_BRANCH) $BRANCH -- '*.js' '*.jsx' '*.ts' '*.tsx'"
+	echo -e "Changed files:\n$CHANGED_FILES"
+	echo "Commits hashes: $COMMITS_HASHES"
 fi
 
 # Bail if no files were changed in this branch
