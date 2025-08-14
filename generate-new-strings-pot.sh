@@ -67,14 +67,16 @@ function move_pot_to_output() {
 # It creates temporary PHP files for each new string and uses WP-CLI to extract the strings
 # into a POT file. The headers of the POT file are cleaned up before output.
 function extract_php_strings() {
+	cd ..
 	CHANGED_PHP_FILES=$(git diff --name-only $(git merge-base $BRANCH $DEFAULT_BRANCH) $BRANCH -- '*.php')
 	LOCALCI_NEW_PHP_STRINGS=""
 	if [ -n "$CHANGED_PHP_FILES" ]; then
 		for PHP_FILE in $CHANGED_PHP_FILES; do
 			if [ -f "$PHP_FILE" ]; then
 				NEW_LINES=$(git diff $(git merge-base $BRANCH $DEFAULT_BRANCH) $BRANCH -- "$PHP_FILE" | grep '^+' | grep -v '^+++' | sed 's/^+//')
+				echo "New lines in $PHP_FILE: $NEW_LINES"
 				if [ -n "$NEW_LINES" ]; then
-					LOCALCI_NEW_PHP_STRINGS="${LOCALCI_NEW_PHP_STRINGS}${NEW_LINES}"$'\n\n\n\n\n\n'
+					LOCALCI_NEW_PHP_STRINGS="${LOCALCI_NEW_PHP_STRINGS}${NEW_LINES}"$'\n'
 				fi
 			fi
 		done
@@ -93,10 +95,13 @@ function extract_php_strings() {
 				echo "$LINE" > "$file_path"
 				LINE_NUMBER=$((LINE_NUMBER+1))
 			done
+			echo "Files with new PHP strings created in ${OUTPUT_DIR}/files/"
+			echo "ls -l ${OUTPUT_DIR}/files/"
+			ls -l "${OUTPUT_DIR}/files/"
 
 			if command -v wp &> /dev/null; then
 				echo $(pwd)
-				wp i18n make-pot "${OUTPUT_DIR}" "${OUTPUT_DIR}/localci-new-php-strings.pot" --include="${OUTPUT_DIR}/files/" --ignore-domain
+				wp i18n make-pot "${OUTPUT_DIR}" "${OUTPUT_DIR}/localci-new-php-strings.pot" --include="${OUTPUT_DIR}/files/" --ignore-domain --debug
 				clean_pot_headers "${OUTPUT_DIR}/localci-new-php-strings.pot"
 				echo "Extraction complete. Output: ${OUTPUT_DIR}/localci-new-php-strings.pot"
 			else
