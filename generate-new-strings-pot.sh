@@ -210,7 +210,9 @@ CHANGED_FILES="$(tr '\n' ' ' <<<$CHANGED_FILES)"
 
 # if node is installed, d/l node gettext tools and run
 if type "npx" &> /dev/null; then
-	npx @automattic/wp-babel-makepot "$CHANGED_FILES" -l localci-changed-files.json -d "./build/pot" -o ./localci-new-strings.pot
+	echo "Running: npx --verbose @automattic/wp-babel-makepot \"$CHANGED_FILES\" -l localci-changed-files.json -d \"./build/pot\" -o ./localci-new-strings.pot"
+	npx --verbose @automattic/wp-babel-makepot "$CHANGED_FILES" -l localci-changed-files.json -d "./build/pot" -o ./localci-new-strings.pot
+	echo "localci-changed-files.json content: $(cat localci-changed-files.json)"
 elif type "node" &> /dev/null; then
 	cd gp-localci-client/i18n-calypso
 	git submodule init; git submodule update
