@@ -84,7 +84,6 @@ function extract_php_strings() {
 				fi
 			fi
 		done
-		exit 0
 
 		if [ -n "$LOCALCI_NEW_PHP_STRINGS" ]; then
 			mkdir -p "./build/files"
