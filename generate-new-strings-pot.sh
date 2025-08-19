@@ -96,42 +96,56 @@ function extract_php_strings() {
 	clean_pot_headers "$DEFAULT_POT"
 	echo "Extraction complete. Output: $DEFAULT_POT"
 
-	# Extract all msgids except the header (msgid "")
-	grep -E '^msgid "' "$NEW_POT" | grep -v '^msgid ""' | sed 's/^msgid \(".*"\)$/\1/' | sort > build/pot/new_msgids.txt
-	grep -E '^msgid "' "$DEFAULT_POT" | grep -v '^msgid ""' | sed 's/^msgid \(".*"\)$/\1/' | sort > build/pot/default_msgids.txt
 
-	# Find msgids only in new branch
-	comm -23 build/pot/new_msgids.txt build/pot/default_msgids.txt > build/pot/unique_msgids.txt
+	# Truncate OUTPUT_POT to ensure it's a fresh file
+	: > "$OUTPUT_POT"
+	# Use awk to preserve comments and block structure, output only blocks in NEW_POT not in DEFAULT_POT
+       awk -v new_pot="$NEW_POT" -v default_pot="$DEFAULT_POT" -v output_pot="$OUTPUT_POT" '
+       BEGIN {
+	       # Read all msgids from DEFAULT_POT into an array
+	       while ((getline line < default_pot) > 0) {
+		       if (line ~ /^msgid "/) {
+			       msgid = substr(line, 8, length(line)-8)
+			       in_msgid = 1
+		       } else if (in_msgid && line ~ /^"/) {
+			       msgid = msgid substr(line, 2, length(line)-2)
+		       } else if (in_msgid && line !~ /^msgid / && line !~ /^"/) {
+			       in_msgid = 0
+			       default_ids[msgid] = 1
+			       msgid = ""
+		       }
+	       }
+	       if (msgid != "") default_ids[msgid] = 1
+       }
+       {
+	       block = block $0 "\n"
+	       if ($0 ~ /^msgid "/) {
+		       msgid = substr($0, 8, length($0)-8)
+		       in_msgid = 1
+	       } else if (in_msgid && $0 ~ /^"/) {
+		       msgid = msgid substr($0, 2, length($0)-2)
+	       } else if (in_msgid && $0 !~ /^msgid / && $0 !~ /^"/) {
+		       in_msgid = 0
+	       }
+	       if ($0 == "") {
+		       if (msgid != "" && !(msgid in default_ids)) {
+			       sub(/\n*$/, "", block); # remove trailing blank lines
+			       printf "%s\n\n", block >> output_pot; # add exactly one blank line between blocks
+		       }
+		       block = ""
+		       msgid = ""
+	       }
+       }
+       END {
+	       if (block != "" && msgid != "" && !(msgid in default_ids)) {
+		       sub(/\n*$/, "", block); # remove trailing blank lines
+		       printf "%s\n\n", block >> output_pot; # add exactly one blank line between blocks
+	       }
+       }
+       ' "$NEW_POT"
 
-	# Write header from new pot
-	awk 'BEGIN{p=1} /^msgid ""/{print; p=0} p==1{print} /^$/{if(p==0){print; exit}}' "$NEW_POT" > "$OUTPUT_POT"
-
-	# For each unique msgid, extract the full entry from the new pot and append
-	while IFS= read -r msgid; do
-		# Escape for grep
-		msgid_escaped=$(printf '%s' "$msgid" | sed 's/[]\\[^$.*/]/\\&/g')
-		# Find the line number of the msgid
-		start=$(grep -n "^msgid $msgid_escaped" "$NEW_POT" | cut -d: -f1)
-		[ -z "$start" ] && continue
-		# Find the next blank line after start (end of entry)
-		end=$(tail -n +$((start+1)) "$NEW_POT" | grep -n -m1 '^$' | cut -d: -f1)
-		if [ -z "$end" ]; then
-			# If no blank line, take to end of file
-			end_line=$(wc -l < "$NEW_POT")
-			awk -v s="$start" -v e="$end_line" 'NR>=s && NR<=e' "$NEW_POT" >> "$OUTPUT_POT"
-			printf '\n' >> "$OUTPUT_POT"
-		else
-			end_line=$((start + end - 1))
-			awk -v s="$start" -v e="$end_line" 'NR>=s && NR<=e' "$NEW_POT" >> "$OUTPUT_POT"
-			printf '\n' >> "$OUTPUT_POT"
-		fi
-	done < build/pot/unique_msgids.txt
-
-	# Clean up temp files
-	rm -f build/pot/new_msgids.txt build/pot/default_msgids.txt build/pot/unique_msgids.txt
-
-	clean_pot_headers "$OUTPUT_POT"
-	echo "Diff extraction complete. Output: $OUTPUT_POT"
+       # clean_pot_headers "$OUTPUT_POT"
+       echo "Diff extraction complete. Output: $OUTPUT_POT"
 
 	git checkout $BRANCH
 }
