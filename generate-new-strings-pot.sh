@@ -60,6 +60,7 @@ function move_pot_to_output() {
 		mv localci-*.pot $OUTPUT_DIR
 	fi
 	merge_php_js_pot_files
+	clean_files
 }
 
 # Extract PHP strings from changed files. 
@@ -69,14 +70,15 @@ function extract_php_strings() {
 	DEFAULT_POT="build/pot/localci-default-branch-php-strings.pot"
 	OUTPUT_POT="build/pot/localci-new-php-strings.pot"
 	COMMON_COMMIT_ANCESTOR=$(git merge-base $BRANCH $DEFAULT_BRANCH)
-	CHANGED_PHP_FILES=$(git diff --name-only $COMMON_COMMIT_ANCESTOR $BRANCH -- '*.php' | paste -sd ", " -)
-	echo $CHANGED_PHP_FILES
+	echo -e "Changed PHP files:\n$(git diff --name-only $COMMON_COMMIT_ANCESTOR $BRANCH -- '*.php')"
+	CHANGED_PHP_FILES=$(git diff --name-only $COMMON_COMMIT_ANCESTOR $BRANCH -- '*.php' | awk 'ORS=NR==0?"":", "' | sed 's/, $//')
+	echo -e "List of changed PHP files:\n$CHANGED_PHP_FILES"
 
 	git checkout $BRANCH
 	echo "Current branch: $BRANCH"
 	echo "Start the string extraction for new branch"
 	if [ -n "$CHANGED_PHP_FILES" ]; then
-		wp i18n make-pot . "$NEW_POT" --ignore-domain --skip-audit --include="$CHANGED_PHP_FILES"
+		wp i18n make-pot . "$NEW_POT" --ignore-domain --skip-audit --include="$CHANGED_PHP_FILES" --debug
 	else
 		echo "No changed PHP files to extract."
 		touch "$NEW_POT"
@@ -87,7 +89,7 @@ function extract_php_strings() {
 	git checkout $COMMON_COMMIT_ANCESTOR
 	echo "Start the string extraction for default branch"
 	if [ -n "$CHANGED_PHP_FILES" ]; then
-		wp i18n make-pot . "$DEFAULT_POT" --ignore-domain --skip-audit --include="$CHANGED_PHP_FILES"
+		wp i18n make-pot . "$DEFAULT_POT" --ignore-domain --skip-audit --include="$CHANGED_PHP_FILES" --debug
 	else
 		echo "No changed PHP files to extract."
 		touch "$DEFAULT_POT"
@@ -147,9 +149,6 @@ function extract_php_strings() {
        # clean_pot_headers "$OUTPUT_POT"
        echo "Diff extraction complete. Output: $OUTPUT_POT"
 
-	# Cleanup
-	rm -rf ./build/pot
-
 	git checkout $BRANCH
 }
 
@@ -169,6 +168,12 @@ clean_pot_headers() {
 		-e '/^"X-Generator:/d' \
 		"$file"
 	rm -f "${file}.bak"
+}
+
+# Cleanup function to remove temporary files
+clean_files() {
+	rm -rf ./build/pot
+	rm -f localci-changed-files.json
 }
 
 # Files and hashes of changes in this Pull request/Branch
@@ -274,5 +279,3 @@ else
 fi
 
 move_pot_to_output
-# Cleanup
-rm -f localci-changed-files.json
