@@ -147,6 +147,9 @@ function extract_php_strings() {
        # clean_pot_headers "$OUTPUT_POT"
        echo "Diff extraction complete. Output: $OUTPUT_POT"
 
+	# Cleanup
+	rm -rf ./build/pot
+
 	git checkout $BRANCH
 }
 
@@ -273,4 +276,3 @@ fi
 move_pot_to_output
 # Cleanup
 rm -f localci-changed-files.json
-rm -rf ./build/pot
