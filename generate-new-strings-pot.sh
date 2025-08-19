@@ -63,54 +63,77 @@ function move_pot_to_output() {
 }
 
 # Extract PHP strings from changed files. 
-# This function collects new PHP strings from changed files in the current branch.
-# It creates temporary PHP files for each new string and uses WP-CLI to extract the strings
-# into a POT file. The headers of the POT file are cleaned up before output.
+# This function extracts PHP strings from the changed files in the current branch.
 function extract_php_strings() {
-	CHANGED_PHP_FILES=$(git diff --name-only $(git merge-base $BRANCH $DEFAULT_BRANCH) $BRANCH -- '*.php')
-	echo "Current branch: $(git rev-parse --abbrev-ref HEAD)"
-	echo "Command to extract merge-base commit: git merge-base $BRANCH $DEFAULT_BRANCH. Result: $(git merge-base $BRANCH $DEFAULT_BRANCH)"
-	echo "Command to extract changed PHP files: git diff --name-only $(git merge-base $BRANCH $DEFAULT_BRANCH) $BRANCH -- '*.php'"
-	echo -e "Changed PHP files:\n$CHANGED_PHP_FILES"
-	LOCALCI_NEW_PHP_STRINGS=""
+	NEW_POT="build/pot/localci-new-branch-php-strings.pot"
+	DEFAULT_POT="build/pot/localci-default-branch-php-strings.pot"
+	OUTPUT_POT="build/pot/localci-new-php-strings.pot"
+	COMMON_COMMIT_ANCESTOR=$(git merge-base $BRANCH $DEFAULT_BRANCH)
+	CHANGED_PHP_FILES=$(git diff --name-only $COMMON_COMMIT_ANCESTOR $BRANCH -- '*.php' | paste -sd ", " -)
+	echo $CHANGED_PHP_FILES
+
+	git checkout $BRANCH
+	echo "Current branch: $BRANCH"
+	echo "Start the string extraction for new branch"
 	if [ -n "$CHANGED_PHP_FILES" ]; then
-		for PHP_FILE in $CHANGED_PHP_FILES; do
-			if [ -f "$PHP_FILE" ]; then
-				NEW_LINES=$(git diff $(git merge-base $BRANCH $DEFAULT_BRANCH) $BRANCH -- "$PHP_FILE" | grep '^+' | grep -v '^+++' | sed 's/^+//')
-				echo "Number of new lines in $PHP_FILE: $(echo "$NEW_LINES" | wc -l)"
-				if [ -n "$NEW_LINES" ]; then
-					LOCALCI_NEW_PHP_STRINGS="${LOCALCI_NEW_PHP_STRINGS}${NEW_LINES}"$'\n'
-				fi
-			fi
-		done
-
-		if [ -n "$LOCALCI_NEW_PHP_STRINGS" ]; then
-			mkdir -p "./build/files"
-			LINE_NUMBER=1
-			echo "$LOCALCI_NEW_PHP_STRINGS" | while IFS= read -r LINE; do
-				if [ -z "$LINE" ]; then
-					continue
-				fi
-				if [[ "$LINE" != *"<?php"* ]]; then
-					LINE="<?php $LINE"
-				fi
-				file_path="./build/files/${LINE_NUMBER}.php"
-				echo "$LINE" > "$file_path"
-
-				LINE_NUMBER=$((LINE_NUMBER+1))
-			done
-			echo "Number of files created: $(ls -1 ./build/files/ | wc -l)"
-
-			if command -v wp &> /dev/null; then
-				echo $(pwd)
-				wp i18n make-pot "build/files" "build/pot/localci-new-php-strings.pot" --ignore-domain --debug
-				clean_pot_headers "build/pot/localci-new-php-strings.pot"
-				echo "Extraction complete. Output: build/pot/localci-new-php-strings.pot"
-			else
-				echo "WP-CLI not found. Cannot extract PHP translation strings."
-			fi
-		fi
+		wp i18n make-pot . "$NEW_POT" --ignore-domain --skip-audit --include="$CHANGED_PHP_FILES"
+	else
+		echo "No changed PHP files to extract."
+		touch "$NEW_POT"
 	fi
+	echo "Cleaning up POT headers"
+	clean_pot_headers "$NEW_POT"
+	echo "Extraction complete. Output: $NEW_POT"
+	git checkout $COMMON_COMMIT_ANCESTOR
+	echo "Start the string extraction for default branch"
+	if [ -n "$CHANGED_PHP_FILES" ]; then
+		wp i18n make-pot . "$DEFAULT_POT" --ignore-domain --skip-audit --include="$CHANGED_PHP_FILES"
+	else
+		echo "No changed PHP files to extract."
+		touch "$DEFAULT_POT"
+	fi
+	echo "Cleaning up POT headers"
+	clean_pot_headers "$DEFAULT_POT"
+	echo "Extraction complete. Output: $DEFAULT_POT"
+
+	# Extract all msgids except the header (msgid "")
+	grep -E '^msgid "' "$NEW_POT" | grep -v '^msgid ""' | sed 's/^msgid \(".*"\)$/\1/' | sort > build/pot/new_msgids.txt
+	grep -E '^msgid "' "$DEFAULT_POT" | grep -v '^msgid ""' | sed 's/^msgid \(".*"\)$/\1/' | sort > build/pot/default_msgids.txt
+
+	# Find msgids only in new branch
+	comm -23 build/pot/new_msgids.txt build/pot/default_msgids.txt > build/pot/unique_msgids.txt
+
+	# Write header from new pot
+	awk 'BEGIN{p=1} /^msgid ""/{print; p=0} p==1{print} /^$/{if(p==0){print; exit}}' "$NEW_POT" > "$OUTPUT_POT"
+
+	# For each unique msgid, extract the full entry from the new pot and append
+	while IFS= read -r msgid; do
+		# Escape for grep
+		msgid_escaped=$(printf '%s' "$msgid" | sed 's/[]\\[^$.*/]/\\&/g')
+		# Find the line number of the msgid
+		start=$(grep -n "^msgid $msgid_escaped" "$NEW_POT" | cut -d: -f1)
+		[ -z "$start" ] && continue
+		# Find the next blank line after start (end of entry)
+		end=$(tail -n +$((start+1)) "$NEW_POT" | grep -n -m1 '^$' | cut -d: -f1)
+		if [ -z "$end" ]; then
+			# If no blank line, take to end of file
+			end_line=$(wc -l < "$NEW_POT")
+			awk -v s="$start" -v e="$end_line" 'NR>=s && NR<=e' "$NEW_POT" >> "$OUTPUT_POT"
+			printf '\n' >> "$OUTPUT_POT"
+		else
+			end_line=$((start + end - 1))
+			awk -v s="$start" -v e="$end_line" 'NR>=s && NR<=e' "$NEW_POT" >> "$OUTPUT_POT"
+			printf '\n' >> "$OUTPUT_POT"
+		fi
+	done < build/pot/unique_msgids.txt
+
+	# Clean up temp files
+	rm -f build/pot/new_msgids.txt build/pot/default_msgids.txt build/pot/unique_msgids.txt
+
+	clean_pot_headers "$OUTPUT_POT"
+	echo "Diff extraction complete. Output: $OUTPUT_POT"
+
+	git checkout $BRANCH
 }
 
 # Clean up headers from the POT file
@@ -237,5 +260,3 @@ move_pot_to_output
 # Cleanup
 rm -f localci-changed-files.json
 rm -rf ./build/pot
-rm -rf ./build/files
-
