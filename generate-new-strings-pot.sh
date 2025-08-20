@@ -102,7 +102,10 @@ function extract_php_strings() {
 	echo "Cleaning up POT headers"
 	clean_pot_headers "$NEW_POT"
 	echo "Extraction complete. Output: $NEW_POT"
-	git checkout $COMMON_COMMIT_ANCESTOR
+
+	# Syncronize the default branch with the remote 
+	git checkout $DEFAULT_BRANCH
+	git merge --ff-only origin/$DEFAULT_BRANCH || true
 	echo "Start the string extraction for default branch"
 	if [ -n "$CHANGED_PHP_FILES" ]; then
 		wp i18n make-pot . "$DEFAULT_POT" --ignore-domain --skip-audit --include="$CHANGED_PHP_FILES" --debug
