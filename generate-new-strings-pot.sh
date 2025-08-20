@@ -72,8 +72,7 @@ function extract_php_strings() {
 	git config pull.ff only
 	# Syncronize the default branch with the remote 
 	git checkout $DEFAULT_BRANCH
-	git merge --ff-only origin/$DEFAULT_BRANCH
-	git pull origin/$DEFAULT_BRANCH $DEFAULT_BRANCH
+	git pull origin $DEFAULT_BRANCH
 #	echo "Current branch: $(git rev-parse --abbrev-ref HEAD)" 
 #	echo "SHA of the last commit of the $(git rev-parse --abbrev-ref HEAD) branch: $(git rev-parse HEAD)"
 	git checkout $BRANCH
