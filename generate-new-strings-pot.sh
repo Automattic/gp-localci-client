@@ -70,7 +70,7 @@ function extract_php_strings() {
 	DEFAULT_POT="build/pot/localci-default-branch-php-strings.pot"
 	OUTPUT_POT="build/pot/localci-new-php-strings.pot"
 	git checkout $DEFAULT_BRANCH
-	git pull origin $DEFAULT_BRANCH
+	# git pull origin $DEFAULT_BRANCH
 	echo "Current branch: $(git rev-parse --abbrev-ref HEAD)" 
 	echo "SHA of the last commit of the $(git rev-parse --abbrev-ref HEAD) branch: $(git rev-parse HEAD)"
 	git checkout $BRANCH
