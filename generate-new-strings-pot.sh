@@ -75,6 +75,8 @@ function extract_php_strings() {
 	echo "Current branch: $(git rev-parse --abbrev-ref HEAD)" 
 	echo "SHA of the last commit of the $(git rev-parse --abbrev-ref HEAD) branch: $(git rev-parse HEAD)"
 	git checkout $BRANCH
+	echo "Show the graph of the last 400 commits:"
+	git log --graph --oneline --all -n 400
 	echo "Current branch: $(git rev-parse --abbrev-ref HEAD)" 
 	echo "Command to extract merge-base commit: git merge-base $BRANCH $DEFAULT_BRANCH. Result: $(git merge-base $BRANCH $DEFAULT_BRANCH)"
 	COMMON_COMMIT_ANCESTOR=$(git merge-base $BRANCH $DEFAULT_BRANCH)
