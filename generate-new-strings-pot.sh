@@ -69,7 +69,15 @@ function extract_php_strings() {
 	NEW_POT="build/pot/localci-new-branch-php-strings.pot"
 	DEFAULT_POT="build/pot/localci-default-branch-php-strings.pot"
 	OUTPUT_POT="build/pot/localci-new-php-strings.pot"
+	git checkout $DEFAULT_BRANCH
+	git pull origin $DEFAULT_BRANCH
+	echo "Current branch: $(git rev-parse --abbrev-ref HEAD)" 
+	echo "SHA of the last commit of the $(git rev-parse --abbrev-ref HEAD) branch: $(git rev-parse HEAD)"
+	git checkout $BRANCH
+	echo "Current branch: $(git rev-parse --abbrev-ref HEAD)" 
+	echo "Command to extract merge-base commit: git merge-base $BRANCH $DEFAULT_BRANCH. Result: $(git merge-base $BRANCH $DEFAULT_BRANCH)"
 	COMMON_COMMIT_ANCESTOR=$(git merge-base $BRANCH $DEFAULT_BRANCH)
+	echo "Command to extract changed files: git diff --name-only $COMMON_COMMIT_ANCESTOR $BRANCH -- '*.php'"
 	echo -e "Changed PHP files:\n$(git diff --name-only $COMMON_COMMIT_ANCESTOR $BRANCH -- '*.php')"
 	CHANGED_PHP_FILES=$(git diff --name-only $COMMON_COMMIT_ANCESTOR $BRANCH -- '*.php' | awk 'ORS=NR==0?"":", "' | sed 's/, $//')
 	echo -e "List of changed PHP files:\n$CHANGED_PHP_FILES"
