@@ -70,22 +70,27 @@ function extract_php_strings() {
 	DEFAULT_POT="build/pot/localci-default-branch-php-strings.pot"
 	OUTPUT_POT="build/pot/localci-new-php-strings.pot"
 	git config pull.ff only
-	git checkout $DEFAULT_BRANCH
+#	git checkout $DEFAULT_BRANCH
 #	git pull origin $DEFAULT_BRANCH
-	echo "Current branch: $(git rev-parse --abbrev-ref HEAD)" 
-	echo "SHA of the last commit of the $(git rev-parse --abbrev-ref HEAD) branch: $(git rev-parse HEAD)"
-	git checkout $BRANCH
+#	echo "Current branch: $(git rev-parse --abbrev-ref HEAD)" 
+#	echo "SHA of the last commit of the $(git rev-parse --abbrev-ref HEAD) branch: $(git rev-parse HEAD)"
+#	git checkout $BRANCH
+
 	echo "Show the graph of the last 400 commits:"
 	git log --graph --oneline --all -n 400
+	echo "Show the detailed log of the last 400 commits:"
+	git log --graph --pretty='%Cred%h%Creset -%C(auto)%d%Creset %s %Cgreen(%ar) %C(bold blue)<%an>%Creset' --all  -n 400
+
+	echo "Last commit of the origin/$DEFAULT_BRANCH branch: $(git rev-parse origin/$DEFAULT_BRANCH)"
 	echo "Current branch: $(git rev-parse --abbrev-ref HEAD)" 
-	echo "Command to extract merge-base commit: git merge-base $BRANCH $DEFAULT_BRANCH. Result: $(git merge-base $BRANCH $DEFAULT_BRANCH)"
-	COMMON_COMMIT_ANCESTOR=$(git merge-base $BRANCH $DEFAULT_BRANCH)
-	echo "Command to extract changed files: git diff --name-only $COMMON_COMMIT_ANCESTOR $BRANCH -- '*.php'"
-	echo -e "Changed PHP files:\n$(git diff --name-only $COMMON_COMMIT_ANCESTOR $BRANCH -- '*.php')"
-	CHANGED_PHP_FILES=$(git diff --name-only $COMMON_COMMIT_ANCESTOR $BRANCH -- '*.php' | awk 'ORS=NR==0?"":", "' | sed 's/, $//')
+#	echo "Command to extract merge-base commit: git merge-base $BRANCH origin/$DEFAULT_BRANCH. Result: $(git merge-base $BRANCH origin/$DEFAULT_BRANCH)"
+#	COMMON_COMMIT_ANCESTOR=$(git merge-base $BRANCH origin/$DEFAULT_BRANCH)
+#	echo "Command to extract changed files: git diff --name-only $COMMON_COMMIT_ANCESTOR $BRANCH -- '*.php'"
+#	echo -e "Changed PHP files:\n$(git diff --name-only $COMMON_COMMIT_ANCESTOR $BRANCH -- '*.php')"
+	echo -e "Changed PHP files:\n$(git diff --name-only origin/$DEFAULT_BRANCH...$BRANCH -- '*.php')"
+	CHANGED_PHP_FILES=$(git diff --name-only origin/$DEFAULT_BRANCH...$BRANCH -- '*.php' | awk 'ORS=NR==0?"":", "' | sed 's/, $//')
 	echo -e "List of changed PHP files:\n$CHANGED_PHP_FILES"
 
-	git checkout $BRANCH
 	echo "Current branch: $BRANCH"
 	echo "Start the string extraction for new branch"
 	if [ -n "$CHANGED_PHP_FILES" ]; then
