@@ -69,52 +69,28 @@ function extract_php_strings() {
 	NEW_POT="build/pot/localci-new-branch-php-strings.pot"
 	DEFAULT_POT="build/pot/localci-default-branch-php-strings.pot"
 	OUTPUT_POT="build/pot/localci-new-php-strings.pot"
-	git config pull.ff only
-	# Syncronize the default branch with the remote 
-	git checkout $DEFAULT_BRANCH
-	git pull origin $DEFAULT_BRANCH
-#	echo "Current branch: $(git rev-parse --abbrev-ref HEAD)" 
-#	echo "SHA of the last commit of the $(git rev-parse --abbrev-ref HEAD) branch: $(git rev-parse HEAD)"
-	git checkout $BRANCH
 
-	echo "Show the graph of the last 400 commits:"
-	git log --graph --oneline --all -n 400
-	echo "Show the detailed log of the last 400 commits:"
-	git log --graph --pretty='%Cred%h%Creset -%C(auto)%d%Creset %s %Cgreen(%ar) %C(bold blue)<%an>%Creset' --all  -n 400
-
-	echo "Last commit of the origin/$DEFAULT_BRANCH branch: $(git rev-parse origin/$DEFAULT_BRANCH)"
-	echo "Current branch: $(git rev-parse --abbrev-ref HEAD)" 
-#	echo "Command to extract merge-base commit: git merge-base $BRANCH origin/$DEFAULT_BRANCH. Result: $(git merge-base $BRANCH origin/$DEFAULT_BRANCH)"
-#	COMMON_COMMIT_ANCESTOR=$(git merge-base $BRANCH origin/$DEFAULT_BRANCH)
-#	echo "Command to extract changed files: git diff --name-only $COMMON_COMMIT_ANCESTOR $BRANCH -- '*.php'"
-#	echo -e "Changed PHP files:\n$(git diff --name-only $COMMON_COMMIT_ANCESTOR $BRANCH -- '*.php')"
 	echo -e "Changed PHP files:\n$(git diff --name-only origin/$DEFAULT_BRANCH...$BRANCH -- '*.php')"
 	CHANGED_PHP_FILES=$(git diff --name-only origin/$DEFAULT_BRANCH...$BRANCH -- '*.php' | awk 'ORS=NR==0?"":", "' | sed 's/, $//')
-	echo -e "List of changed PHP files:\n$CHANGED_PHP_FILES"
 
-	echo "Current branch: $BRANCH"
-	echo "Start the string extraction for new branch"
 	if [ -n "$CHANGED_PHP_FILES" ]; then
-		wp i18n make-pot . "$NEW_POT" --ignore-domain --skip-audit --include="$CHANGED_PHP_FILES" --debug
+		wp i18n make-pot . "$NEW_POT" --ignore-domain --skip-audit --include="$CHANGED_PHP_FILES"
+		echo "POT file created for new branch: $NEW_POT"
 	else
 		echo "No changed PHP files to extract."
 		touch "$NEW_POT"
 	fi
-	echo "Cleaning up POT headers"
 	clean_pot_headers "$NEW_POT"
-	echo "Extraction complete. Output: $NEW_POT"
 
 	git checkout $DEFAULT_BRANCH
-	echo "Start the string extraction for default branch"
 	if [ -n "$CHANGED_PHP_FILES" ]; then
-		wp i18n make-pot . "$DEFAULT_POT" --ignore-domain --skip-audit --include="$CHANGED_PHP_FILES" --debug
+		wp i18n make-pot . "$DEFAULT_POT" --ignore-domain --skip-audit --include="$CHANGED_PHP_FILES"
+		echo "POT file created for default branch: $DEFAULT_POT"
 	else
 		echo "No changed PHP files to extract."
 		touch "$DEFAULT_POT"
 	fi
-	echo "Cleaning up POT headers"
 	clean_pot_headers "$DEFAULT_POT"
-	echo "Extraction complete. Output: $DEFAULT_POT"
 
 
 	# Truncate OUTPUT_POT to ensure it's a fresh file
@@ -164,9 +140,6 @@ function extract_php_strings() {
        }
        ' "$NEW_POT"
 
-       # clean_pot_headers "$OUTPUT_POT"
-       echo "Diff extraction complete. Output: $OUTPUT_POT"
-
 	git checkout $BRANCH
 }
 
@@ -192,6 +165,12 @@ clean_pot_headers() {
 clean_files() {
 	rm -rf ./build/pot
 	rm -f localci-changed-files.json
+
+	# Show git commit history for debugging purposes
+	echo "Show the graph of the last 400 commits:"
+	git log --graph --oneline --all -n 400
+	echo "Show the detailed log of the last 400 commits:"
+	git log --graph --pretty='%Cred%h%Creset -%C(auto)%d%Creset %s %Cgreen(%ar) %C(bold blue)<%an>%Creset' --all  -n 400
 }
 
 # Files and hashes of changes in this Pull request/Branch
@@ -233,11 +212,6 @@ else
 	extract_php_strings
 	CHANGED_FILES=$(git diff --name-only $(git merge-base $BRANCH $DEFAULT_BRANCH) $BRANCH -- '*.js' '*.jsx' '*.ts' '*.tsx')
 	COMMITS_HASHES=$(git log $DEFAULT_BRANCH..$BRANCH --pretty=format:%H);
-	echo "Current branch: $(git rev-parse --abbrev-ref HEAD)"
-	echo "Command to extract merge-base commit: git merge-base $BRANCH $DEFAULT_BRANCH. Result: $(git merge-base $BRANCH $DEFAULT_BRANCH)"
-	echo "Command to extract changed files: git diff --name-only $(git merge-base $BRANCH $DEFAULT_BRANCH) $BRANCH -- '*.js' '*.jsx' '*.ts' '*.tsx'"
-	echo -e "Changed files:\n$CHANGED_FILES"
-	echo "Commits hashes: $COMMITS_HASHES"
 fi
 
 # Bail if no files were changed in this branch
@@ -282,9 +256,7 @@ CHANGED_FILES="$(tr '\n' ' ' <<<$CHANGED_FILES)"
 
 # if node is installed, d/l node gettext tools and run
 if type "npx" &> /dev/null; then
-	echo "Running: npx --verbose @automattic/wp-babel-makepot \"$CHANGED_FILES\" -l localci-changed-files.json -d \"./build/pot\" -o ./localci-new-strings.pot"
 	npx --verbose @automattic/wp-babel-makepot "$CHANGED_FILES" -l localci-changed-files.json -d "./build/pot" -o ./localci-new-strings.pot
-	echo "localci-changed-files.json content: $(cat localci-changed-files.json)"
 elif type "node" &> /dev/null; then
 	cd gp-localci-client/i18n-calypso
 	git submodule init; git submodule update
