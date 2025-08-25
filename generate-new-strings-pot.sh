@@ -78,6 +78,7 @@ function extract_php_strings() {
 		echo "POT file created for new branch: $NEW_POT"
 	else
 		echo "No changed PHP files to extract."
+		mkdir -p build/pot/
 		touch "$NEW_POT"
 	fi
 	clean_pot_headers "$NEW_POT"
