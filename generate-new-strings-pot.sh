@@ -41,6 +41,16 @@ function auth_gh_curl() {
     curl -s $AUTH $URL
 }
 
+# Merge the PHP pot and JS the pot files in one file (the JS pot file).
+function merge_php_js_pot_files() {
+	local PHP_FILE="build/pot/localci-new-php-strings.pot"
+	local JS_FILE="$OUTPUT_DIR/localci-new-strings.pot"
+	if [[ -f "$PHP_FILE" ]]; then
+		echo "" >> "$JS_FILE"
+		cat "$PHP_FILE" >> "$JS_FILE"
+	fi
+}
+
 function move_pot_to_output() {
 	if [[ ! -f "./localci-new-strings.pot" ]]; then
 		touch ./localci-new-strings.pot
@@ -49,6 +59,119 @@ function move_pot_to_output() {
 		mkdir -p $OUTPUT_DIR
 		mv localci-*.pot $OUTPUT_DIR
 	fi
+	merge_php_js_pot_files
+	clean_files
+}
+
+# Extract PHP strings from changed files. 
+# This function extracts PHP strings from the changed files in the current branch.
+function extract_php_strings() {
+	NEW_POT="build/pot/localci-new-branch-php-strings.pot"
+	DEFAULT_POT="build/pot/localci-default-branch-php-strings.pot"
+	OUTPUT_POT="build/pot/localci-new-php-strings.pot"
+
+	echo -e "Changed PHP files:\n$(git diff --name-only origin/$DEFAULT_BRANCH...$BRANCH -- '*.php')"
+	CHANGED_PHP_FILES=$(git diff --name-only origin/$DEFAULT_BRANCH...$BRANCH -- '*.php' | awk 'ORS=NR==0?"":", "' | sed 's/, $//')
+
+	if [ -n "$CHANGED_PHP_FILES" ]; then
+		wp i18n make-pot . "$NEW_POT" --ignore-domain --skip-audit --include="$CHANGED_PHP_FILES"
+		echo "POT file created for new branch: $NEW_POT"
+	else
+		echo "No changed PHP files to extract."
+		mkdir -p build/pot/
+		touch "$NEW_POT"
+	fi
+	clean_pot_headers "$NEW_POT"
+
+	git checkout $DEFAULT_BRANCH
+	if [ -n "$CHANGED_PHP_FILES" ]; then
+		wp i18n make-pot . "$DEFAULT_POT" --ignore-domain --skip-audit --include="$CHANGED_PHP_FILES"
+		echo "POT file created for default branch: $DEFAULT_POT"
+	else
+		echo "No changed PHP files to extract."
+		touch "$DEFAULT_POT"
+	fi
+	clean_pot_headers "$DEFAULT_POT"
+
+
+	# Truncate OUTPUT_POT to ensure it's a fresh file
+	: > "$OUTPUT_POT"
+	# Use awk to preserve comments and block structure, output only blocks in NEW_POT not in DEFAULT_POT
+       awk -v new_pot="$NEW_POT" -v default_pot="$DEFAULT_POT" -v output_pot="$OUTPUT_POT" '
+       BEGIN {
+	       # Read all msgids from DEFAULT_POT into an array
+	       while ((getline line < default_pot) > 0) {
+		       if (line ~ /^msgid "/) {
+			       msgid = substr(line, 8, length(line)-8)
+			       in_msgid = 1
+		       } else if (in_msgid && line ~ /^"/) {
+			       msgid = msgid substr(line, 2, length(line)-2)
+		       } else if (in_msgid && line !~ /^msgid / && line !~ /^"/) {
+			       in_msgid = 0
+			       default_ids[msgid] = 1
+			       msgid = ""
+		       }
+	       }
+	       if (msgid != "") default_ids[msgid] = 1
+       }
+       {
+	       block = block $0 "\n"
+	       if ($0 ~ /^msgid "/) {
+		       msgid = substr($0, 8, length($0)-8)
+		       in_msgid = 1
+	       } else if (in_msgid && $0 ~ /^"/) {
+		       msgid = msgid substr($0, 2, length($0)-2)
+	       } else if (in_msgid && $0 !~ /^msgid / && $0 !~ /^"/) {
+		       in_msgid = 0
+	       }
+	       if ($0 == "") {
+		       if (msgid != "" && !(msgid in default_ids)) {
+			       sub(/\n*$/, "", block); # remove trailing blank lines
+			       printf "%s\n\n", block >> output_pot; # add exactly one blank line between blocks
+		       }
+		       block = ""
+		       msgid = ""
+	       }
+       }
+       END {
+	       if (block != "" && msgid != "" && !(msgid in default_ids)) {
+		       sub(/\n*$/, "", block); # remove trailing blank lines
+		       printf "%s\n\n", block >> output_pot; # add exactly one blank line between blocks
+	       }
+       }
+       ' "$NEW_POT"
+
+	git checkout $BRANCH
+}
+
+# Clean up headers from the POT file
+clean_pot_headers() {
+	local file="$1"
+	sed -i.bak \
+		-e '/^"Project-Id-Version:/d' \
+		-e '/^"Report-Msgid-Bugs-To:/d' \
+		-e '/^"Last-Translator:/d' \
+		-e '/^"Language-Team:/d' \
+		-e '/^"MIME-Version:/d' \
+		-e '/^"Content-Type:/d' \
+		-e '/^"Content-Transfer-Encoding:/d' \
+		-e '/^"POT-Creation-Date:/d' \
+		-e '/^"PO-Revision-Date:/d' \
+		-e '/^"X-Generator:/d' \
+		"$file"
+	rm -f "${file}.bak"
+}
+
+# Cleanup function to remove temporary files
+clean_files() {
+	rm -rf ./build/pot
+	rm -f localci-changed-files.json
+
+	# Show git commit history for debugging purposes
+	echo "Show the graph of the last 400 commits:"
+	git log --graph --oneline --all -n 400
+	echo "Show the detailed log of the last 400 commits:"
+	git log --graph --pretty='%Cred%h%Creset -%C(auto)%d%Creset %s %Cgreen(%ar) %C(bold blue)<%an>%Creset' --all  -n 400
 }
 
 # Files and hashes of changes in this Pull request/Branch
@@ -87,6 +210,7 @@ if [[ "$CI_PULL_REQUEST" ]]; then
 
 else
 	echo "LocalCI - processing branch $BRANCH"
+	extract_php_strings
 	CHANGED_FILES=$(git diff --name-only $(git merge-base $BRANCH $DEFAULT_BRANCH) $BRANCH -- '*.js' '*.jsx' '*.ts' '*.tsx')
 	COMMITS_HASHES=$(git log $DEFAULT_BRANCH..$BRANCH --pretty=format:%H);
 fi
@@ -133,7 +257,7 @@ CHANGED_FILES="$(tr '\n' ' ' <<<$CHANGED_FILES)"
 
 # if node is installed, d/l node gettext tools and run
 if type "npx" &> /dev/null; then
-	npx @automattic/wp-babel-makepot "$CHANGED_FILES" -l localci-changed-files.json -d "./build/pot" -o ./localci-new-strings.pot
+	npx --verbose @automattic/wp-babel-makepot "$CHANGED_FILES" -l localci-changed-files.json -d "./build/pot" -o ./localci-new-strings.pot
 elif type "node" &> /dev/null; then
 	cd gp-localci-client/i18n-calypso
 	git submodule init; git submodule update
@@ -145,8 +269,4 @@ else
 	exit 1
 fi
 
-# Cleanup
-rm -f localci-changed-files.json
-rm -rf ./build/pot
 move_pot_to_output
-
